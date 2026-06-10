@@ -1,6 +1,3 @@
-/*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -25,5 +22,5 @@ if any single client sends a message.`,
 
 func init() {
 	rootCmd.AddCommand(startCmd)
-	startCmd.Flags().Int64P("port", "p", 8080, "Specify the server listening port")
+	startCmd.Flags().Uint16P("port", "p", 8080, "Specify the server listening port")
 }

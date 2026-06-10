@@ -22,5 +22,5 @@ that will listen to the broadcasted messages over the specified port.
 
 func init() {
 	rootCmd.AddCommand(connectCmd)
-	connectCmd.Flags().Int64P("port", "p", 8080, "Specify the client connection port")
+	connectCmd.Flags().Uint16P("port", "p", 8080, "Specify the client connection port")
 }
