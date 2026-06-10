@@ -1,8 +1,11 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
+	"log"
 
+	"github.com/coder/websocket"
+	"github.com/inflame-ue/gobcast/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +19,18 @@ gobcast connect [--port] allows you to connect a client to the websocket server
 that will listen to the broadcasted messages over the specified port.
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("connect called")
+		portFlag := cmd.Flag("port")
+		ctx := context.Background()
+
+		conn, _, err := websocket.Dial(ctx, "ws://localhost:"+portFlag.Value.String(), nil)
+		if err != nil {
+			log.Fatalf("dialing websocket at port %s: %v", portFlag.Value.String(), err)
+		}
+		defer conn.CloseNow()
+
+		wsClient := client.NewBroadcastClient(ctx, conn)
+		go wsClient.Broadcast()
+		go wsClient.Receive()
 	},
 }
 
