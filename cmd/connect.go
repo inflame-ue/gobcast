@@ -33,9 +33,9 @@ that will listen to the broadcasted messages over the specified port.
 
 		wsClient := client.NewBroadcastClient(ctx, conn)
 		go wsClient.PrintStdin()
+		go wsClient.ReadStdin()
 		go wsClient.Broadcast()
 		go wsClient.Receive()
-		go wsClient.ReadStdin()
 
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)

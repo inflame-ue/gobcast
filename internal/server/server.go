@@ -65,6 +65,7 @@ func (bs *broadcastServer) ConnectionHub() {
 				err := clientConn.Write(bs.ctx, websocket.MessageText, msg)
 				if err != nil {
 					log.Printf("write to client connection with ctx: %v", err)
+					bs.leave <- clientConn // remove the client, if broadcasting to it errors
 				}
 			}
 		}
