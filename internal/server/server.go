@@ -57,8 +57,10 @@ func (bs *broadcastServer) ConnectionHub() {
 		select {
 		case joinConn := <-bs.join:
 			bs.connections[joinConn] = struct{}{}
+			log.Printf("new client connect -- number of connected clients: %d", len(bs.connections))
 		case leaveConn := <-bs.leave:
 			delete(bs.connections, leaveConn)
+			log.Printf("client disconnected -- number of connected clients: %d", len(bs.connections))
 		case msg := <-bs.message:
 			for clientConn := range bs.connections {
 				log.Printf("writing message to connection: %s", msg) // TODO: identify connections for logging purposes

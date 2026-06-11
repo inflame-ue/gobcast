@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -41,6 +42,9 @@ func (bc *broadcastClient) ReadStdin() {
 	for {
 		msg, err := reader.ReadBytes('\n')
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			log.Printf("read from stdin: %v", err)
 		}
 		bc.message <- msg
