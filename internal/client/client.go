@@ -16,6 +16,7 @@ type broadcastClient struct {
 	conn    *websocket.Conn
 	message chan []byte
 	errors  chan error
+	print   chan string
 }
 
 func NewBroadcastClient(ctx context.Context, conn *websocket.Conn) *broadcastClient {
@@ -24,13 +25,20 @@ func NewBroadcastClient(ctx context.Context, conn *websocket.Conn) *broadcastCli
 		conn:    conn,
 		message: make(chan []byte),
 		errors:  make(chan error),
+		print:   make(chan string),
+	}
+}
+
+func (bc *broadcastClient) PrintStdin() {
+	for msg := range bc.print {
+		fmt.Print(msg)
 	}
 }
 
 func (bc *broadcastClient) ReadStdin() {
 	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Message to Broadcast: ")
 	for {
-		fmt.Print("Message to Broadcast: ")
 		msg, err := reader.ReadBytes('\n')
 		if err != nil {
 			log.Printf("read from stdin: %v", err)
@@ -66,6 +74,7 @@ func (bc *broadcastClient) Receive() {
 			bc.errors <- err
 			log.Printf("reading from websocket connection: %v", err)
 		}
-		fmt.Printf("%s", msg)
+		bc.print <- fmt.Sprintf("Message Received: %s", msg)
+		bc.print <- "Message to Broadcast: \n"
 	}
 }
