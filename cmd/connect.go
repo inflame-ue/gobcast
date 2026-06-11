@@ -2,7 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/coder/websocket"
 	"github.com/inflame-ue/gobcast/internal/client"
@@ -20,18 +24,27 @@ that will listen to the broadcasted messages over the specified port.
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		portFlag := cmd.Flag("port")
-		ctx := context.Background()
+		ctx, cancel := context.WithCancel(context.Background())
 
 		conn, _, err := websocket.Dial(ctx, "ws://localhost:"+portFlag.Value.String(), nil)
 		if err != nil {
 			log.Fatalf("dialing websocket at port %s: %v", portFlag.Value.String(), err)
 		}
-		defer conn.CloseNow()
 
 		wsClient := client.NewBroadcastClient(ctx, conn)
 		go wsClient.ReadStdin()
 		go wsClient.Broadcast()
 		go wsClient.Receive()
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-sigs
+			fmt.Println("\ninterrupt received, shutting down client")
+			cancel()
+			conn.CloseNow()
+			os.Exit(0)
+		}()
 
 		select {}
 	},

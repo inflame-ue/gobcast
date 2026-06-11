@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -27,8 +28,8 @@ func NewBroadcastClient(ctx context.Context, conn *websocket.Conn) *broadcastCli
 }
 
 func (bc *broadcastClient) ReadStdin() {
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Message to Broadcast: ")
 		msg, err := reader.ReadBytes('\n')
 		if err != nil {
@@ -48,6 +49,8 @@ func (bc *broadcastClient) Broadcast() {
 			}
 		case err := <-bc.errors:
 			log.Fatalf("broadcast interrupted: %v", err)
+		case _ = <-bc.ctx.Done():
+			os.Exit(0)
 		}
 
 	}
@@ -57,8 +60,11 @@ func (bc *broadcastClient) Receive() {
 	for {
 		_, msg, err := bc.conn.Read(bc.ctx)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				os.Exit(0)
+			}
 			bc.errors <- err
-			log.Fatalf("reading from websocket connection: %v", err)
+			log.Printf("reading from websocket connection: %v", err)
 		}
 		fmt.Printf("%s", msg)
 	}
