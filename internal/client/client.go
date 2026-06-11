@@ -11,38 +11,45 @@ import (
 )
 
 type broadcastClient struct {
-	ctx  context.Context
-	conn *websocket.Conn
+	ctx     context.Context
+	conn    *websocket.Conn
+	message chan []byte
+	errors  chan error
 }
 
 func NewBroadcastClient(ctx context.Context, conn *websocket.Conn) *broadcastClient {
 	return &broadcastClient{
-		ctx:  ctx,
-		conn: conn,
+		ctx:     ctx,
+		conn:    conn,
+		message: make(chan []byte),
+		errors:  make(chan error),
 	}
 }
 
-func readStdin() ([]byte, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Message to Broadcast: ")
-	msg, err := reader.ReadBytes('\n')
-	if err != nil {
-		return nil, fmt.Errorf("read from stdin: %w", err)
+func (bc *broadcastClient) ReadStdin() {
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Message to Broadcast: ")
+		msg, err := reader.ReadBytes('\n')
+		if err != nil {
+			log.Printf("read from stdin: %v", err)
+		}
+		bc.message <- msg
 	}
-	return msg, nil
 }
 
 func (bc *broadcastClient) Broadcast() {
 	for {
-		msg, err := readStdin()
-		if err != nil {
-			log.Print(err)
+		select {
+		case msg := <-bc.message:
+			err := bc.conn.Write(bc.ctx, websocket.MessageText, msg)
+			if err != nil {
+				log.Fatalf("writing to websocket connection: %v", err)
+			}
+		case err := <-bc.errors:
+			log.Fatalf("broadcast interrupted: %v", err)
 		}
 
-		err = bc.conn.Write(bc.ctx, websocket.MessageText, msg)
-		if err != nil {
-			log.Fatalf("writing to websocket connection: %v", err)
-		}
 	}
 }
 
@@ -50,8 +57,9 @@ func (bc *broadcastClient) Receive() {
 	for {
 		_, msg, err := bc.conn.Read(bc.ctx)
 		if err != nil {
+			bc.errors <- err
 			log.Fatalf("reading from websocket connection: %v", err)
 		}
-		fmt.Print(msg)
+		fmt.Printf("%s", msg)
 	}
 }

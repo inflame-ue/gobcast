@@ -37,12 +37,12 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	bs.join <- conn
 	for {
 		_, msg, err := conn.Read(bs.ctx)
-		log.Printf("read message from connection: %s", msg)
 		if err != nil {
 			log.Printf("read message from connection with ctx: %v", err)
 			bs.leave <- conn
 			return
 		}
+		log.Printf("read message from connection: %s", msg)
 		bs.message <- msg
 	}
 }

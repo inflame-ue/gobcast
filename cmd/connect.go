@@ -29,8 +29,11 @@ that will listen to the broadcasted messages over the specified port.
 		defer conn.CloseNow()
 
 		wsClient := client.NewBroadcastClient(ctx, conn)
+		go wsClient.ReadStdin()
 		go wsClient.Broadcast()
 		go wsClient.Receive()
+
+		select {}
 	},
 }
 
