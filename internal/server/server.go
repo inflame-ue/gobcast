@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/coder/websocket"
 )
@@ -38,6 +40,9 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, msg, err := conn.Read(bs.ctx)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				os.Exit(0)
+			}
 			log.Printf("read message from connection with ctx: %v", err)
 			bs.leave <- conn
 			return
