@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,20 +13,35 @@ import (
 
 type broadcastServer struct {
 	connections map[*websocket.Conn]struct{}
+	ctx         context.Context
+	token       string
 	join        chan *websocket.Conn
 	leave       chan *websocket.Conn
 	message     chan []byte
-	ctx         context.Context
 }
 
-func NewBroadcastServer(ctx context.Context) *broadcastServer {
+func NewBroadcastServer(ctx context.Context, token string) *broadcastServer {
 	return &broadcastServer{
 		connections: map[*websocket.Conn]struct{}{},
 		join:        make(chan *websocket.Conn),
 		leave:       make(chan *websocket.Conn),
 		message:     make(chan []byte),
 		ctx:         ctx,
+		token:       token,
 	}
+}
+
+func (bs *broadcastServer) verifyToken(conn *websocket.Conn) (bool, error) {
+	_, clientToken, err := conn.Read(bs.ctx)
+	if err != nil {
+		return false, fmt.Errorf("verify connection token: %w", err)
+	}
+
+	if bs.token != string(clientToken) {
+		return false, fmt.Errorf("failed to verify the token %s != %s", bs.token, clientToken)
+	}
+
+	return true, nil
 }
 
 func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +51,23 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.CloseNow()
+
+	if ok, err := bs.verifyToken(conn); !ok || err != nil {
+		log.Print(err)
+		err = conn.Write(bs.ctx, websocket.MessageText, []byte("The connection token is invalid, please try again."))
+		if err != nil {
+			log.Printf("writing after failure to verify token: %v", err)
+		}
+		return
+	} else {
+		// send acknowledge for the client to proceed
+		log.Print("valid token, acknowledging to the client")
+		err = conn.Write(bs.ctx, websocket.MessageText, []byte("token valid, ack"))
+		if err != nil {
+			log.Printf("failed the write of ack: %v", err)
+			return
+		}
+	}
 
 	bs.join <- conn
 	for {

@@ -25,8 +25,9 @@ and accept client connections into a broadcast pool, which will be notified in f
 if any single client sends a message.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		portFlag := cmd.Flag("port")
+		tokenFlag := cmd.Flag("token")
 		ctx, cancel := context.WithCancel(context.Background())
-		wsServ := server.NewBroadcastServer(ctx)
+		wsServ := server.NewBroadcastServer(ctx, tokenFlag.Value.String())
 		go wsServ.ConnectionHub()
 
 		httpServ := http.Server{
@@ -58,4 +59,5 @@ if any single client sends a message.`,
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.Flags().Uint16P("port", "p", 8080, "Specify the server listening port")
+	startCmd.Flags().StringP("token", "t", "", "Specify the token that the clients should be passing in")
 }
