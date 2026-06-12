@@ -36,7 +36,7 @@ that will listen to the broadcasted messages over the specified port.
 			log.Fatalf("dialing websocket at port %s: %v", portFlag.Value.String(), err)
 		}
 
-		// connection token verification
+		// connection token handshake
 		err = conn.Write(ctx, websocket.MessageText, []byte(tokenFlag.Value.String()))
 		if err != nil {
 			log.Fatalf("failed to write token to the server: %v", err)

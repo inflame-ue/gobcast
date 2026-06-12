@@ -60,7 +60,7 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else {
-		// send acknowledge for the client to proceed
+		// send ack for the client to proceed
 		log.Print("valid token, acknowledging to the client")
 		err = conn.Write(bs.ctx, websocket.MessageText, []byte("token valid, ack"))
 		if err != nil {
