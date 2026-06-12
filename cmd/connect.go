@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -27,11 +28,15 @@ that will listen to the broadcasted messages over the specified port.
 		portFlag := cmd.Flag("port")
 		hostFlag := cmd.Flag("host")
 		tokenFlag := cmd.Flag("token")
+		nicknameFlag := cmd.Flag("nickname")
 
 		connString := fmt.Sprintf("ws://%s:%s", hostFlag.Value.String(), portFlag.Value.String())
 		ctx, cancel := context.WithCancel(context.Background())
+		options := &websocket.DialOptions{
+			HTTPHeader: http.Header{"Client-Nickname": []string{nicknameFlag.Value.String()},},
+		}
 
-		conn, _, err := websocket.Dial(ctx, connString, nil)
+		conn, _, err := websocket.Dial(ctx, connString, options)
 		if err != nil {
 			log.Fatalf("dialing websocket at port %s: %v", portFlag.Value.String(), err)
 		}
@@ -73,4 +78,5 @@ func init() {
 	connectCmd.Flags().Uint16P("port", "p", 8080, "Specify the client connection port")
 	connectCmd.Flags().String("host", "localhost", "Specify the websocket host")
 	connectCmd.Flags().StringP("token", "t", "", "Specify the connection token the server expects(must be passed in!)")
+	connectCmd.Flags().String("nickname", "", "Specify the nickname identificator, which will be pased to all client's on a message")
 }

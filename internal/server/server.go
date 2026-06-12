@@ -11,20 +11,25 @@ import (
 	"github.com/coder/websocket"
 )
 
+type clientConn struct {
+	conn     *websocket.Conn
+	nickname string
+}
+
 type broadcastServer struct {
-	connections map[*websocket.Conn]struct{}
+	connections map[*clientConn]struct{}
 	ctx         context.Context
 	token       string
-	join        chan *websocket.Conn
-	leave       chan *websocket.Conn
+	join        chan *clientConn
+	leave       chan *clientConn
 	message     chan []byte
 }
 
 func NewBroadcastServer(ctx context.Context, token string) *broadcastServer {
 	return &broadcastServer{
-		connections: map[*websocket.Conn]struct{}{},
-		join:        make(chan *websocket.Conn),
-		leave:       make(chan *websocket.Conn),
+		connections: map[*clientConn]struct{}{},
+		join:        make(chan *clientConn),
+		leave:       make(chan *clientConn),
 		message:     make(chan []byte),
 		ctx:         ctx,
 		token:       token,
@@ -45,6 +50,8 @@ func (bs *broadcastServer) verifyToken(conn *websocket.Conn) (bool, error) {
 }
 
 func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	clientNickname := r.Header.Get("Client-Nickname")
+
 	conn, err := websocket.Accept(w, r, nil) // don't require custom AcceptOptions
 	if err != nil {
 		log.Printf("upgrade HTTP conn to websocket: %v", err)
@@ -69,7 +76,8 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	bs.join <- conn
+	client := &clientConn{conn: conn, nickname: clientNickname}
+	bs.join <- client
 	for {
 		_, msg, err := conn.Read(bs.ctx)
 		if err != nil {
@@ -77,11 +85,11 @@ func (bs *broadcastServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				os.Exit(0)
 			}
 			log.Printf("read message from connection with ctx: %v", err)
-			bs.leave <- conn
+			bs.leave <- client
 			return
 		}
 		log.Printf("read message from connection: %s", msg)
-		bs.message <- msg
+		bs.message <- []byte(fmt.Sprintf("%s: %s", client.nickname, msg))
 	}
 }
 
@@ -96,8 +104,8 @@ func (bs *broadcastServer) ConnectionHub() {
 			log.Printf("client disconnected -- number of connected clients: %d", len(bs.connections))
 		case msg := <-bs.message:
 			for clientConn := range bs.connections {
-				log.Printf("writing message to connection: %s", msg) // TODO: identify connections for logging purposes
-				err := clientConn.Write(bs.ctx, websocket.MessageText, msg)
+				log.Printf("writing message to connection: %s", msg)
+				err := clientConn.conn.Write(bs.ctx, websocket.MessageText, msg)
 				if err != nil {
 					log.Printf("write to client connection with ctx: %v", err)
 					bs.leave <- clientConn // remove the client, if broadcasting to it errors
