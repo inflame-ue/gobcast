@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/coder/websocket"
@@ -25,12 +26,26 @@ that will listen to the broadcasted messages over the specified port.
 	Run: func(cmd *cobra.Command, args []string) {
 		portFlag := cmd.Flag("port")
 		hostFlag := cmd.Flag("host")
+		tokenFlag := cmd.Flag("token")
+
 		connString := fmt.Sprintf("ws://%s:%s", hostFlag.Value.String(), portFlag.Value.String())
 		ctx, cancel := context.WithCancel(context.Background())
 
 		conn, _, err := websocket.Dial(ctx, connString, nil)
 		if err != nil {
 			log.Fatalf("dialing websocket at port %s: %v", portFlag.Value.String(), err)
+		}
+
+		// connection token handshake
+		err = conn.Write(ctx, websocket.MessageText, []byte(tokenFlag.Value.String()))
+		if err != nil {
+			log.Fatalf("failed to write token to the server: %v", err)
+		}
+		_, msg, err := conn.Read(ctx)
+		if err != nil || strings.Contains(string(msg), "invalid") {
+			fmt.Printf("token %s is invalid, please try again\n", tokenFlag.Value.String())
+			cancel()
+			return
 		}
 
 		wsClient := client.NewBroadcastClient(ctx, conn)
@@ -57,4 +72,5 @@ func init() {
 	rootCmd.AddCommand(connectCmd)
 	connectCmd.Flags().Uint16P("port", "p", 8080, "Specify the client connection port")
 	connectCmd.Flags().String("host", "localhost", "Specify the websocket host")
+	connectCmd.Flags().StringP("token", "t", "", "Specify the connection token the server expects(must be passed in!)")
 }
