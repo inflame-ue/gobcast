@@ -78,7 +78,7 @@ func (bc *broadcastClient) Receive() {
 			bc.errors <- err
 			log.Printf("reading from websocket connection: %v", err)
 		}
-		bc.print <- fmt.Sprintf("Message Received: %s", msg)
+		bc.print <- string(msg)
 		bc.print <- "Message to Broadcast: \n"
 	}
 }
